@@ -27,7 +27,7 @@ def get_bussola_model():
     )
     
     model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash', # Excelente para contextos longos (como contratos)
+        model_name='gemini-2.0-flash', # Excelente para contextos longos (como contratos)
         system_instruction=SYSTEM_PROMPT,
         generation_config=generation_config
     )
