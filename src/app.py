@@ -1,28 +1,30 @@
 import streamlit as st
 import PyPDF2
 from PIL import Image
-from config import configure_api
+# Importamos apenas o necessário do config e do agente
 from agente import analisar_com_rag
 
-# Configuração da página da interface
+# 1. Configuração da página da interface
 st.set_page_config(page_title="Bússola De Crédito", page_icon="🧭", layout="centered")
-
-# Inicializa a API do Google Gemini
-try:
-    configure_api()
-except Exception as e:
-    st.error(f"Erro de configuração: {e}")
-    st.stop()
 
 st.title("🧭 Bússola De Crédito")
 st.markdown("Seu amigo experiente para traduzir contratos e te ajudar a sair das dívidas.")
 
-# Área lateral atualizada para suportar múltiplos arquivos e imagens
+
+if __name__ == "__main__":
+    print("Iniciando o processamento dos documentos regulatórios...")
+
+
+from vector_store import criar_base_conhecimento
+criar_base_conhecimento()
+print("Base de conhecimento 'Regulatory' criada com sucesso!")
+
+
+# 2. Área lateral para upload de documentos
 with st.sidebar:
     st.header("Análise de Contrato e Faturas")
-    st.write("Faça o upload do seu contrato bancário em PDF ou envie fotos/prints das faturas ou ofertas do aplicativo.")
+    st.write("Faça o upload do seu contrato bancário em PDF ou envie fotos das faturas.")
     
-    # Permitir múltiplos arquivos e formatos de imagem
     uploaded_files = st.file_uploader(
         "Envie seus arquivos (PDF, PNG, JPG)", 
         type=["pdf", "png", "jpg", "jpeg"], 
@@ -35,7 +37,6 @@ with st.sidebar:
     if uploaded_files:
         for file in uploaded_files:
             try:
-                # Se for PDF, extrai o texto
                 if file.name.lower().endswith('.pdf'):
                     reader = PyPDF2.PdfReader(file)
                     for page in reader.pages:
@@ -43,41 +44,43 @@ with st.sidebar:
                         if texto_extraid:
                             texto_contrato += texto_extraid + "\n"
                 
-                # Se for Imagem, abre com o Pillow e guarda na lista
                 elif file.name.lower().endswith(('.png', '.jpg', '.jpeg')):
                     img = Image.open(file)
                     imagens_contrato.append(img)
-                    st.image(img, caption=f"Imagem carregada: {file.name}", use_column_width=True)
+                    st.image(img, caption=f"Imagem: {file.name}", use_column_width=True)
                     
             except Exception as e:
                 st.error(f"Erro ao ler o arquivo {file.name}: {e}")
                 
-        st.success("Documentos carregados! O Bússola já está pronto para ler as 'letras miúdas'.")
+        if texto_contrato or imagens_contrato:
+            st.success("Documentos prontos para análise!")
 
-# Gerenciamento de estado do chat
+# 3. Gerenciamento de estado do chat
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    # Saudação inicial conforme definido na documentação
-    saudacao_inicial = "Olá! Sou o Bússola. Estou aqui para te ajudar a traduzir esses contratos complicados e encontrar o melhor caminho para sair das dívidas. Se você tiver algum contrato ou print de oferta de negociação, pode subir aqui na barra lateral. Vou ler as 'letras miúdas' para você agora mesmo."
+    saudacao_inicial = (
+        "Olá! Sou o Bússola. Estou aqui para te ajudar a traduzir esses contratos complicados "
+        "e encontrar o melhor caminho para sair das dívidas. Se tiver um contrato ou print, "
+        "suba na barra lateral que eu leio para você agora!"
+    )
     st.session_state.messages.append({"role": "assistant", "content": saudacao_inicial})
 
-# Exibe o histórico do chat
+# Exibe o histórico
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Caixa de entrada para o usuário
-if prompt := st.chat_input("Pergunte sobre sua dívida, CET ou envie um print..."):
+# 4. Caixa de entrada e Processamento
+if prompt := st.chat_input("Pergunte sobre sua dívida ou juros..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Resposta do Agente
     with st.chat_message("assistant"):
-        with st.spinner("Analisando seus dados e lendo as imagens..."):
-            # Agora passamos os textos extraídos E as imagens para a função
+        with st.spinner("O Bússola está analisando..."):
+            # A lógica de decidir se aceita imagem ou texto está dentro do agente.py
             resposta = analisar_com_rag(texto_contrato, imagens_contrato, prompt)
             st.markdown(resposta)
-                           
-    # Salva a resposta no histórico
+            
     st.session_state.messages.append({"role": "assistant", "content": resposta})
+    
